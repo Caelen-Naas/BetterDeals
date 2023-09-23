@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const app = express();
 
+
 // Middleware to parse JSON request bodies
 app.use(bodyParser.json());
 
@@ -16,8 +17,6 @@ app.post('/post', (req, res) => {
     const postData = req.body.data;
     res.json({ message: 'POST request received', data: postData });
 });
-
-const port = 3000;
 
 app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
