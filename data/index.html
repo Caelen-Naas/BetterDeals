@@ -1,7 +1,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <video id="camera" autoplay="true"></video>
+<div id="result"></div>
+<button id="scanButton">Scan</button>
 <script>
     const video = document.querySelector("#camera");
+    const resultDiv = document.querySelector("#result");
+    let scanCount = 51;
+    let maxScanCount = 50;
+    let sendData = false;
+    let ids = {};
+
+    scanButton.addEventListener("click", function() {
+        scanCount = 0; // Reset scan count
+        sendData = true;
+        ids = {};
+    });
 
     // Get user media (camera) stream
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -20,7 +33,7 @@
             target: video, // Use the video element as the target
         },
         decoder: {
-            readers: ["ean_reader", "code_128_reader", "code_39_reader", "UPCA_reader"]
+            readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader"]
         },
     }, function(err) {
         if (err) {
@@ -28,6 +41,26 @@
             return;
         }
         Quagga.start();
+
+        // Handle the detected event
+        Quagga.onDetected(function(result) {
+            scanCount++;
+            if (scanCount <= maxScanCount) {
+                const code = result.codeResult.code;
+                if (ids[code] == undefined) {
+                    ids[code] = 1;
+                } else {
+                    ids[code]++;
+                }
+                console.log(code, ids[code]);
+            }
+
+            if (scanCount > maxScanCount && sendData == true) {
+                id = Object.keys(ids).reduce((a, b) => ids[a] > ids[b] ? a : b);
+                console.log("Sending data to server " + id);
+                sendData = false;
+            }
+        });
     });
 
 </script>
