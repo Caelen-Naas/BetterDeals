@@ -8,7 +8,7 @@ app.use(bodyParser.json());
 
 // Serve a simple HTML form for GET requests
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname+'/data/index.html'));
+    res.sendFile(path.join(__dirname+'/data/pub_site/index.html'));
 });
 
 // Handle POST requests
