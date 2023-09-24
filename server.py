@@ -4,6 +4,7 @@ import glob
 import json
 from bs4 import BeautifulSoup
 import os
+import shutil
 import argparse
 
 
@@ -12,11 +13,16 @@ if os.name == 'nt':
 else:
     subdirectory = '/'
 
+
+if not os.path.exists(f'.{subdirectory}data{subdirectory}settings.json'):
+    shutil.copyfile(f'.{subdirectory}data{subdirectory}backup{subdirectory}settings.json', f'.{subdirectory}data{subdirectory}settings.json')
+
 settings: dict = json.load(open(f'.{subdirectory}data{subdirectory}settings.json'))
 
 url: str = settings.get('scrape_url')
 port: int = settings.get('port', 8080)
 dictionary_path: str = settings.get('dictionary_path').replace('(SUB)', subdirectory)
+logo_path: str = settings.get('logo_path').replace('(SUB)', subdirectory)
 
 app = flask.Flask(__name__)
 
@@ -58,6 +64,20 @@ def scrape_id(id: str) -> dict:
     return data
 
 
+def scrape_prices(product_name: str) -> dict:
+    link = 'https://www.google.com/search?hl=en&tbm=shop&psb=1&q=' + product_name.replace(' ', '+')
+
+    page = requests.get(link)
+    soup = BeautifulSoup(page.content, 'html.parser')
+    with open('test.txt', 'w') as file:
+        file.write(str(soup))
+    spans = soup.find_all('a')
+    for span in spans:
+        if span.has_attr('href'):
+            print(span.text)
+
+
+
 # Define a route and a function to handle the route
 @app.route('/')
 def serve_index():
@@ -78,8 +98,16 @@ def handle_lookup():
     return flask.jsonify(data)  # Return the scraped data as JSON
 
 
+def print_logo():
+    with open(logo_path, mode='r', encoding='utf-8') as file:
+        print(file.read())
+
+
 # Run the Flask app
 if __name__ == '__main__':
+    print_logo()
     args = parse_command_line()
+
+    scrape_prices('12 Pack Mug Root Beer Fridge Pack')
     
     app.run(debug=args.debug, port=port)

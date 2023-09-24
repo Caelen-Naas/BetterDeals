@@ -1,0 +1,5 @@
+{
+    "port" : 8080,
+    "dictionary_path" : ".(SUB)data(SUB)dictionary(SUB)",
+    "scrape_url" : "https://www.upcdatabase.com/item/(BARCODE)"
+}
