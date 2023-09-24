@@ -1,6 +1,10 @@
 {
     "port" : 8080,
     "dictionary_path" : ".(SUB)data(SUB)dictionary(SUB)",
+    "price_dictionary_path" : ".(SUB)data(SUB)price_dictionary(SUB)",
+    "price_refresh_interval" : 1,
+    "date_format" : "%Y-%m-%d %H:%M:%S",
     "scrape_url" : "https://www.upcdatabase.com/item/(BARCODE)",
-    "logo_path" : ".(SUB)data(SUB)logo.txt"
+    "logo_path" : ".(SUB)data(SUB)logo.txt",
+    "accepted_vendors" : ["walmart", "amazon", "target", ""]
 }

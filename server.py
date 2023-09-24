@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import os
 import shutil
 import argparse
+import scraper
+import datetime
 
 
 if os.name == 'nt':
@@ -22,7 +24,11 @@ settings: dict = json.load(open(f'.{subdirectory}data{subdirectory}settings.json
 url: str = settings.get('scrape_url')
 port: int = settings.get('port', 8080)
 dictionary_path: str = settings.get('dictionary_path').replace('(SUB)', subdirectory)
+price_dictionary_path: str = settings.get('price_dictionary_path').replace('(SUB)', subdirectory)
+price_refresh_interval: int = settings.get('price_refresh_interval', 1) #days
+date_format: str = settings.get('date_format', '%Y-%m-%d %H:%M:%S.%f')
 logo_path: str = settings.get('logo_path').replace('(SUB)', subdirectory)
+accepted_vendors: list = settings.get('accepted_vendors')
 
 app = flask.Flask(__name__)
 
@@ -64,18 +70,16 @@ def scrape_id(id: str) -> dict:
     return data
 
 
-def scrape_prices(product_name: str) -> dict:
-    link = 'https://www.google.com/search?hl=en&tbm=shop&psb=1&q=' + product_name.replace(' ', '+')
+def scrape_prices(id, description, max_results=5, accepted_vendors=None):
+    global price_dictionary_path
 
-    page = requests.get(link)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    with open('test.txt', 'w') as file:
-        file.write(str(soup))
-    spans = soup.find_all('a')
-    for span in spans:
-        if span.has_attr('href'):
-            print(span.text)
+    expiration = datetime.datetime.now() + datetime.timedelta(days=price_refresh_interval)
+    
+    data = scraper.scrape_google_shopping(description, max_results, accepted_vendors)
+    with open(f'{price_dictionary_path}{id}.json', 'w') as file:
+        json.dump({'expires': expiration.strftime(date_format), 'results' : data}, file)
 
+    return data
 
 
 # Define a route and a function to handle the route
@@ -89,13 +93,27 @@ def handle_lookup():
     upc = json.loads(flask.request.data.decode('utf-8'))['upc']  # Get the UPC code from the form
     
     ids = glob.glob(f'{dictionary_path}*.json')
+    prices = glob.glob(f'{price_dictionary_path}*.json')
     if f'{dictionary_path}{upc}.json' in ids:
         print('GLOB')
-        return flask.jsonify(json.load(open(f'{dictionary_path}{upc}.json')))
+        data = json.load(open(f'{dictionary_path}{upc}.json'))
+    else:
+        print('SCRAPE')
+        data = scrape_id(upc) 
     
-    print('SCRAPE')
-    data = scrape_id(upc)  # Scrape data for the provided UPC code
-    return flask.jsonify(data)  # Return the scraped data as JSON
+    if f'{price_dictionary_path}{upc}.json' in prices:
+        print('GLOB')
+        price_data = json.load(open(f'{price_dictionary_path}{upc}.json'))
+
+        if datetime.datetime.strptime(price_data['expires'], date_format) < datetime.datetime.now():
+            print('SCRAPE')
+            price_data = scrape_prices(upc, data['Description'], accepted_vendors=accepted_vendors)
+    else:
+        print('SCRAPE')
+        price_data = scrape_prices(upc, data['Description'], accepted_vendors=accepted_vendors)
+    
+    
+    return flask.jsonify(data, price_data)  # Return the scraped data as JSON
 
 
 def print_logo():
@@ -107,7 +125,5 @@ def print_logo():
 if __name__ == '__main__':
     print_logo()
     args = parse_command_line()
-
-    scrape_prices('12 Pack Mug Root Beer Fridge Pack')
     
     app.run(debug=args.debug, port=port)
