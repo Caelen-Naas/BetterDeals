@@ -11,9 +11,9 @@ import datetime
 
 
 if os.name == 'nt':
-    subdirectory = '\\'
+    subdirectory: str = '\\'
 else:
-    subdirectory = '/'
+    subdirectory: str = '/'
 
 
 if not os.path.exists(f'.{subdirectory}data{subdirectory}settings.json'):
@@ -21,6 +21,7 @@ if not os.path.exists(f'.{subdirectory}data{subdirectory}settings.json'):
 
 settings: dict = json.load(open(f'.{subdirectory}data{subdirectory}settings.json'))
 
+project_name: str = settings.get('project_name')
 url: str = settings.get('scrape_url')
 port: int = settings.get('port', 8080)
 dictionary_path: str = settings.get('dictionary_path').replace('(SUB)', subdirectory)
@@ -30,7 +31,7 @@ date_format: str = settings.get('date_format', '%Y-%m-%d %H:%M:%S.%f')
 logo_path: str = settings.get('logo_path').replace('(SUB)', subdirectory)
 accepted_vendors: list = settings.get('accepted_vendors')
 
-app = flask.Flask(__name__)
+app = flask.Flask(project_name)
 
 
 def parse_command_line() -> argparse.Namespace:
@@ -86,7 +87,42 @@ def scrape_prices(id, description, max_results=5, accepted_vendors=None) -> None
         json.dump({'expires': expiration.strftime(date_format), 'results' : data}, file)
 
 
-# Define a route and a function to handle the route
+def is_valid_barcode(barcode: str) -> bool:
+    """
+    Verify if a barcode number is a valid UPC-A or EAN-13 type.
+
+    :param barcode: The barcode number as a string.
+    :return: True if it's a valid UPC-A or EAN-13 barcode, False otherwise.
+    """
+
+    # Check if the barcode is a numeric string
+    if not barcode.isdigit():
+        return False
+
+    # Check the length of the barcode
+    length = len(barcode)
+    if length != 12 and length != 13:
+        return False
+
+    # Calculate and verify the check digit
+    if length == 12:  # UPC-A
+        # Calculate the check digit
+        total = sum(int(barcode[i]) * (3 if i % 2 == 0 else 1) for i in range(11))
+        check_digit = (10 - (total % 10)) % 10
+
+        # Verify the check digit
+        return int(barcode[-1]) == check_digit
+    elif length == 13:  # EAN-13
+        # Calculate the check digit
+        total = sum(int(barcode[i]) * (3 if i % 2 == 0 else 1) for i in range(12))
+        check_digit = (10 - (total % 10)) % 10
+
+        # Verify the check digit
+        return int(barcode[-1]) == check_digit
+
+    return False
+
+
 @app.route('/')
 def serve_index():
     """
@@ -134,16 +170,47 @@ def handle_lookup():
     return flask.jsonify(data, price_data)  # Return the scraped data as JSON
 
 
+@app.route('/add_data', methods=['POST'])
+def add_data():
+    """
+    Handle POST requests to add new data to the dictionary folder.
+    """
+
+    # Get the JSON data from the request
+    new_data = json.loads(flask.request.data.decode('utf-8'))
+
+    # Check if the required fields are present in the JSON data
+    if 'id' not in new_data or 'data' not in new_data:
+        return flask.jsonify({'error': 'Invalid data format'})
+
+    id = new_data['id']
+    data = new_data['data']
+
+    # Check if the ID is valid (e.g., alphanumeric)
+    if not is_valid_barcode(id):
+        return flask.jsonify({'error': 'Invalid ID format'})
+
+    # Check if the ID already exists in the dictionary folder
+    existing_files = glob.glob(f'{dictionary_path}*.json')
+    if f'{dictionary_path}{id}.json' in existing_files:
+        return flask.jsonify({'error': 'ID already exists'})
+
+    # Save the new data to a JSON file
+    with open(f'{dictionary_path}{id}.json', 'w') as file:
+        json.dump(data, file)
+
+    return flask.jsonify({'message': 'Data added successfully'})
+
+
 def print_logo():
     """
     Print the contents of the logo file.
     """
-    
+
     with open(logo_path, mode='r', encoding='utf-8') as file:
         print(file.read())
 
 
-# Run the Flask app
 if __name__ == '__main__':
     print_logo()
     args = parse_command_line()

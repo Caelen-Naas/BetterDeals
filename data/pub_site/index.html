@@ -99,7 +99,7 @@
             .then(data => {
                 // Display the response data
                 console.log(JSON.stringify(data, null, 2));
-                resultContainer.appendChild(createProductDiv(data[0]));
+                resultContainer.appendChild(createInfoDiv(data[0]));
                 console.log(data[1]['results'].length)
 
                 for (var i = 0; i < data[1]['results'].length; i++) {
@@ -114,10 +114,49 @@
         });
 
         // Function to create a product div
-        function createProductDiv(productData) {
+
+        function createInfoDiv(productData) {
             const productDiv = document.createElement("div");
             productDiv.classList.add("product");
             productDiv.textContent = JSON.stringify(productData, null, 2);
+            return productDiv;
+        }
+
+        function createProductDiv(productData) {
+            const productDiv = document.createElement("div");
+            productDiv.classList.add("product");
+
+            // Create a clickable link
+            const productLink = document.createElement("a");
+            productLink.href = productData['store_link'];
+            productLink.target = "_blank";  // Open link in a new tab/window
+
+            // Create an image element for the thumbnail
+            const thumbnailImg = document.createElement("img");
+            thumbnailImg.src = productData['thumbnail'];
+            thumbnailImg.alt = "Product Thumbnail"; // Add alt text for accessibility
+            thumbnailImg.style.width = "50px"; // Adjust the width as needed
+            thumbnailImg.style.height = "50px"; // Adjust the height as needed
+            productLink.appendChild(thumbnailImg);
+
+            // Create a span for product title
+            const titleSpan = document.createElement("span");
+            titleSpan.textContent = productData['title'];
+            productLink.appendChild(titleSpan);
+
+            // Create a span for seller name
+            const sellerSpan = document.createElement("span");
+            sellerSpan.textContent = "Seller: " + productData['store'];
+            productLink.appendChild(sellerSpan);
+
+            // Create a span for price
+            const priceSpan = document.createElement("span");
+            priceSpan.textContent = "Price: " + productData['price'];
+            productLink.appendChild(priceSpan);
+
+            // Append the clickable link to the product div
+            productDiv.appendChild(productLink);
+
             return productDiv;
         }
 
@@ -177,7 +216,7 @@
                     .then(data => {
                         // Display the response data
                         console.log(JSON.stringify(data, null, 2));
-                        resultContainer.appendChild(createProductDiv(data[0]));
+                        resultContainer.appendChild(createInfoDiv(data[0]));
                         console.log(data[1]['results'].length)
 
                         for (var i = 0; i < data[1]['results'].length; i++) {

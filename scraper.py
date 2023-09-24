@@ -20,6 +20,22 @@ def extract_actual_vendor_link(google_redirect_url: str) -> str:
     return actual_vendor_link
 
 
+def clean_seller_name(seller_name: str) -> str:
+    """
+    Clean the seller name by removing the "by" prefix and the seller rating.
+
+    :param seller_name: The seller name.
+    :return: The cleaned seller name.
+    """
+    
+    seller_name = seller_name.replace("by ", "")
+    seller_name = seller_name.split(" - ")[0]
+    seller_name = seller_name.replace(".com", "")
+    seller_name = re.sub(r"\s\(\d+\)", "", seller_name)
+
+    return seller_name
+
+
 def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: list = None) -> list:
     """
     Scrape product data from Google Shopping based on a query.
@@ -111,12 +127,13 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
             
             white_listed = False
 
-            for vendor in accepted_vendors:
-                if vendor.lower() in store.lower():
-                    white_listed = True
-                    break
+            if accepted_vendors is not None:
+                for vendor in accepted_vendors:
+                    if vendor.lower() == clean_seller_name(store.lower()):
+                        white_listed = True
+                        break
             
-            if not white_listed:
+            if not white_listed and accepted_vendors is not None:
                 continue
 
             google_shopping_data.append({
@@ -126,7 +143,7 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
 #                "product_reviews": product_reviews,
                 "price": price,
                 "store": store,
-#                "thumbnail": thumbnail,
+                "thumbnail": thumbnail,
                 "store_link": extract_actual_vendor_link(store_link),
                 "delivery": delivery,
 #                "store_rating": store_rating,
@@ -143,3 +160,6 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
         return google_shopping_data
 
     return get_suggested_search_data()
+
+if __name__ == '__main__':
+    print(scrape_google_shopping('12 Pack Mug Root Beer Fridge Pack', accepted_vendors=["walmart", "amazon", "target", "sam's club"]))

@@ -1,4 +1,5 @@
 {
+    "project_name" : "Better Deals",
     "port" : 8080,
     "dictionary_path" : ".(SUB)data(SUB)dictionary(SUB)",
     "price_dictionary_path" : ".(SUB)data(SUB)price_dictionary(SUB)",
@@ -6,5 +7,5 @@
     "date_format" : "%Y-%m-%d %H:%M:%S",
     "scrape_url" : "https://www.upcdatabase.com/item/(BARCODE)",
     "logo_path" : ".(SUB)data(SUB)logo.txt",
-    "accepted_vendors" : ["walmart", "amazon", "target", "sam's club"]
+    "accepted_vendors" : ["walmart", "amazon.com", "target", "sam's club"]
 }
