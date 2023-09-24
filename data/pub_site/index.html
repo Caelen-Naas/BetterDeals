@@ -1,14 +1,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <video id="camera" autoplay="true"></video>
 <div id="result"></div>
-<div id="progressText">Scanning in progress...</div>
+<div id="progressText">Press to scan.</div>
 <button id="scanButton">Scan</button>
 <script>
     const video = document.querySelector("#camera");
     const resultDiv = document.querySelector("#result");
     const progressText = document.querySelector("#progressText"); // Add this line
-    let scanCount = 51;
-    let maxScanCount = 50;
+    let maxScanCount = 25;
+    let scanCount = maxScanCount + 1;
     let sendData = false;
     let ids = {};
 
@@ -64,6 +64,20 @@
                 console.log("Sending data to server " + id);
                 sendData = false;
                 progressText.textContent = "Scan complete"; // Update progress text
+
+                fetch("/lookup", {
+                    method: "POST",
+                    body: JSON.stringify({ 'upc': id }),
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Display the response data
+                    console.log(JSON.stringify(data, null, 2));
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                });
             }
         });
     });
