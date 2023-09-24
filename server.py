@@ -35,21 +35,22 @@ app = flask.Flask(__name__)
 
 def parse_command_line() -> argparse.Namespace:
     """
-    Parse the command line arguments using argparse
-    :return: the parsed command line arguments
+    Parse command-line arguments.
     """
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--debug', help='debugger mode', action="store_true")
+    parser.add_argument('-p', '--port', help='port to run the server on', type=int)
+    parser.add_argument('-fr', '--force_refresh', help='force refresh the data', action="store_true")
+
 
     return parser.parse_args()
 
 
 def scrape_id(id: str) -> None:
     """
-    Scrape the data from the given id
-    :param id: the id of the data
-    :return: the data
+    Scrape data for the given ID and save it to a JSON file.
+    :param id: The ID to scrape.
     """
     global url
 
@@ -69,6 +70,13 @@ def scrape_id(id: str) -> None:
 
 
 def scrape_prices(id, description, max_results=5, accepted_vendors=None) -> None:
+    """
+    Scrape price data for a product ID and save it to a JSON file.
+    :param id: The product ID.
+    :param description: The product description.
+    :param max_results: Maximum number of results to scrape.
+    :param accepted_vendors: List of accepted vendors.
+    """
     global price_dictionary_path
 
     expiration = datetime.datetime.now() + datetime.timedelta(days=price_refresh_interval)
@@ -81,11 +89,19 @@ def scrape_prices(id, description, max_results=5, accepted_vendors=None) -> None
 # Define a route and a function to handle the route
 @app.route('/')
 def serve_index():
+    """
+    Serve the index HTML file.
+    """
+
     return flask.send_file(f'.{subdirectory}data{subdirectory}pub_site{subdirectory}index.html')
 
 
 @app.route('/lookup', methods=['POST'])
 def handle_lookup():
+    """
+    Handle POST requests to perform lookup and return scraped data as JSON.
+    """
+
     upc = json.loads(flask.request.data.decode('utf-8'))['upc']  # Get the UPC code from the form
 
     try:
@@ -119,6 +135,10 @@ def handle_lookup():
 
 
 def print_logo():
+    """
+    Print the contents of the logo file.
+    """
+    
     with open(logo_path, mode='r', encoding='utf-8') as file:
         print(file.read())
 
@@ -127,5 +147,18 @@ def print_logo():
 if __name__ == '__main__':
     print_logo()
     args = parse_command_line()
+
+    if args.port:
+        port = args.port
+    
+    if args.force_refresh:
+        ids = glob.glob(f'{dictionary_path}*.json')
+        prices = glob.glob(f'{price_dictionary_path}*.json')
+
+        for id in ids:
+            os.remove(id)
+        
+        for price in prices:
+            os.remove(price)
     
     app.run(debug=args.debug, port=port)

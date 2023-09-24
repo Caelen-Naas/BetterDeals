@@ -4,11 +4,16 @@ from parsel import Selector
 from urllib.parse import urlparse, parse_qs
 
 
-def extract_actual_vendor_link(google_redirect_url):
-    # Parse the URL
+def extract_actual_vendor_link(google_redirect_url: str) -> str:
+    """
+    Extract the actual vendor link from a Google redirect URL.
+
+    :param google_redirect_url: The Google redirect URL.
+    :return: The actual vendor link.
+    """
+    
     parsed_url = urlparse(google_redirect_url)
 
-    # Extract the 'url' parameter from the query string
     query_parameters = parse_qs(parsed_url.query)
     actual_vendor_link = query_parameters.get('url', [None])[0]
 
@@ -16,7 +21,15 @@ def extract_actual_vendor_link(google_redirect_url):
 
 
 def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: list = None) -> list:
-    # Define parameters and headers
+    """
+    Scrape product data from Google Shopping based on a query.
+
+    :param query: The search query.
+    :param max_results: Maximum number of results to scrape.
+    :param accepted_vendors: List of accepted vendors to filter results.
+    :return: A list of dictionaries containing product data.
+    """
+
     params = {
         "q": query,
         "hl": "en",
@@ -40,6 +53,12 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
     selector = Selector(response.text)
 
     def get_original_images() -> list:
+        """
+        Extract original image URLs from Google Shopping results.
+
+        :return: A list of original image URLs.
+        """
+        
         all_script_tags = "".join(
             [
                 script.replace("</script>", "</script>\n")
@@ -59,6 +78,11 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
         return image_urls
 
     def get_suggested_search_data() -> list:
+        """
+        Extract product data from Google Shopping results.
+
+        :return: A list of dictionaries containing product data.
+        """
         google_shopping_data = []
         result_count = 1
 
@@ -85,23 +109,28 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
             compare_prices_link_value = result.css(".Ldx8hd .iXEZD::attr(href)").get()
             compare_prices_link = "https://www.google.com" + compare_prices_link_value if compare_prices_link_value else compare_prices_link_value
             
+            white_listed = False
 
             for vendor in accepted_vendors:
-                if vendor.lower() not in store.lower():
-                    pass
+                if vendor.lower() in store.lower():
+                    white_listed = True
+                    break
+            
+            if not white_listed:
+                continue
 
             google_shopping_data.append({
                 "title": title,
 #                "product_link": product_link,
-                "product_rating": product_rating,
-                "product_reviews": product_reviews,
+#                "product_rating": product_rating,
+#                "product_reviews": product_reviews,
                 "price": price,
                 "store": store,
 #                "thumbnail": thumbnail,
                 "store_link": extract_actual_vendor_link(store_link),
                 "delivery": delivery,
-                "store_rating": store_rating,
-                "store_reviews": store_reviews,
+#                "store_rating": store_rating,
+#                "store_reviews": store_reviews,
 #                "store_reviews_link": store_reviews_link,
 #                "compare_prices_link": compare_prices_link,
             })

@@ -177,9 +177,11 @@
                     .then(data => {
                         // Display the response data
                         console.log(JSON.stringify(data, null, 2));
-                        console.log(data[1])
-                        for (var i = 0; i < data.length; i++) {
-                            const productDiv = createProductDiv(data[i]);
+                        resultContainer.appendChild(createProductDiv(data[0]));
+                        console.log(data[1]['results'].length)
+
+                        for (var i = 0; i < data[1]['results'].length; i++) {
+                            const productDiv = createProductDiv(data[1]['results'][i]);
                             resultContainer.appendChild(productDiv);
                         }
                     })
