@@ -45,7 +45,7 @@ def parse_command_line() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def scrape_id(id: str) -> dict:
+def scrape_id(id: str) -> None:
     """
     Scrape the data from the given id
     :param id: the id of the data
@@ -67,10 +67,8 @@ def scrape_id(id: str) -> dict:
     with open(f'{dictionary_path}{id}.json', 'w') as file:
         json.dump(data, file)
 
-    return data
 
-
-def scrape_prices(id, description, max_results=5, accepted_vendors=None):
+def scrape_prices(id, description, max_results=5, accepted_vendors=None) -> None:
     global price_dictionary_path
 
     expiration = datetime.datetime.now() + datetime.timedelta(days=price_refresh_interval)
@@ -78,8 +76,6 @@ def scrape_prices(id, description, max_results=5, accepted_vendors=None):
     data = scraper.scrape_google_shopping(description, max_results, accepted_vendors)
     with open(f'{price_dictionary_path}{id}.json', 'w') as file:
         json.dump({'expires': expiration.strftime(date_format), 'results' : data}, file)
-
-    return data
 
 
 # Define a route and a function to handle the route
@@ -91,26 +87,32 @@ def serve_index():
 @app.route('/lookup', methods=['POST'])
 def handle_lookup():
     upc = json.loads(flask.request.data.decode('utf-8'))['upc']  # Get the UPC code from the form
+
+    try:
+        int(upc)
+    except:
+        return flask.jsonify({'error': 'Invalid UPC'})
     
     ids = glob.glob(f'{dictionary_path}*.json')
     prices = glob.glob(f'{price_dictionary_path}*.json')
-    if f'{dictionary_path}{upc}.json' in ids:
-        print('GLOB')
-        data = json.load(open(f'{dictionary_path}{upc}.json'))
-    else:
-        print('SCRAPE')
-        data = scrape_id(upc) 
-    
-    if f'{price_dictionary_path}{upc}.json' in prices:
-        print('GLOB')
-        price_data = json.load(open(f'{price_dictionary_path}{upc}.json'))
 
-        if datetime.datetime.strptime(price_data['expires'], date_format) < datetime.datetime.now():
-            print('SCRAPE')
-            price_data = scrape_prices(upc, data['Description'], accepted_vendors=accepted_vendors)
-    else:
+    
+    if f'{dictionary_path}{upc}.json' not in ids:
+        print('GLOB')
+        scrape_id(upc)
+    
+    data = json.load(open(f'{dictionary_path}{upc}.json'))
+    
+    if f'{price_dictionary_path}{upc}.json' not in prices:
+        print('GLOB')
+        scrape_prices(upc, data['Description'], accepted_vendors=accepted_vendors)
+    
+    price_data = json.load(open(f'{price_dictionary_path}{upc}.json'))
+
+    if datetime.datetime.strptime(price_data['expires'], date_format) < datetime.datetime.now():
         print('SCRAPE')
-        price_data = scrape_prices(upc, data['Description'], accepted_vendors=accepted_vendors)
+        scrape_prices(upc, data['Description'], accepted_vendors=accepted_vendors)
+        price_data = json.load(open(f'{price_dictionary_path}{upc}.json'))
     
     
     return flask.jsonify(data, price_data)  # Return the scraped data as JSON

@@ -1,85 +1,195 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-<video id="camera" autoplay="true"></video>
-<div id="result"></div>
-<div id="progressText">Press to scan.</div>
-<button id="scanButton">Scan</button>
-<script>
-    const video = document.querySelector("#camera");
-    const resultDiv = document.querySelector("#result");
-    const progressText = document.querySelector("#progressText"); // Add this line
-    let maxScanCount = 25;
-    let scanCount = maxScanCount + 1;
-    let sendData = false;
-    let ids = {};
-
-    scanButton.addEventListener("click", function() {
-        scanCount = 0; // Reset scan count
-        sendData = true;
-        ids = {};
-        progressText.textContent = "Scanning in progress..."; // Update progress text
-    });
-
-    // Get user media (camera) stream
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function(stream) {
-            // Assign the camera stream to the video element
-            video.srcObject = stream;
-        })
-        .catch(function(err) {
-            console.error("Camera access error:", err);
-        });
-
-    Quagga.init({
-        inputStream: {
-            name: "Live",
-            type: "LiveStream",
-            target: video, // Use the video element as the target
-        },
-        decoder: {
-            readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader"]
-        },
-    }, function(err) {
-        if (err) {
-            console.error("Quagga initialization failed:", err);
-            return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Better Deals</title>
+    <style>
+        body {
+            display: flex;
+            background-color: #121212; /* Dark mode background color */
+            color: #fff; /* Text color */
+            margin: 0;
+            font-family: Arial, sans-serif;
         }
-        Quagga.start();
 
-        // Handle the detected event
-        Quagga.onDetected(function(result) {
-            scanCount++;
-            if (scanCount <= maxScanCount) {
-                const code = result.codeResult.code;
-                if (ids[code] == undefined) {
-                    ids[code] = 1;
-                } else {
-                    ids[code]++;
-                }
-                console.log(code, ids[code]);
-                progressText.textContent = "Scanning - " + ((100/maxScanCount) * scanCount) + "%"; // Update progress text
-            }
+        #camera-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
 
-            if (scanCount > maxScanCount && sendData == true) {
-                id = Object.keys(ids).reduce((a, b) => ids[a] > ids[b] ? a : b);
-                console.log("Sending data to server " + id);
-                sendData = false;
-                progressText.textContent = "Scan complete"; // Update progress text
+        #camera {
+            width: 100%;
+            max-width: 400px;
+            transform: scaleX(-1);
+        }
 
-                fetch("/lookup", {
-                    method: "POST",
-                    body: JSON.stringify({ 'upc': id }),
-                    headers: {'Content-Type': 'application/json'}
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Display the response data
-                    console.log(JSON.stringify(data, null, 2));
-                })
-                .catch(error => {
-                    console.error("Error:", error);
-                });
-            }
+        #scan-interface {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #result-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .product {
+            background-color: #333;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="camera-container">
+        <video id="camera" autoplay="true"></video>
+        <div id="scan-interface">
+            <div id="result"></div>
+            <div id="progressText">Press to scan.</div>
+            <button id="scanButton">Scan</button>
+        </div>
+    </div>
+    <div id="result-container">
+        <!-- Product divs will be generated here -->
+    </div>
+    <div id="search-container">
+        <input type="text" id="barcodeInput" placeholder="Enter Barcode ID">
+        <button id="searchButton">Search</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script>
+        const video = document.querySelector("#camera");
+        const resultDiv = document.querySelector("#result");
+        const progressText = document.querySelector("#progressText");
+        const resultContainer = document.querySelector("#result-container"); // New result container
+        const searchButton = document.querySelector("#searchButton");
+        let maxScanCount = 25;
+        let scanCount = maxScanCount + 1;
+        let sendData = false;
+        let ids = {};
+
+        scanButton.addEventListener("click", function() {
+            resultContainer.innerHTML = ""; // Clear result container
+            scanCount = 0; // Reset scan count
+            sendData = true;
+            ids = {};
+            progressText.textContent = "Scanning in progress..."; // Update progress text
         });
-    });
 
-</script>
+        searchButton.addEventListener("click", function(){
+            resultContainer.innerHTML = ""; // Clear result container
+            const enteredBarcode = barcodeInput.value;
+            if (enteredBarcode.trim() === "") {
+                alert("Please enter a valid Barcode ID.");
+                return;
+            }
+
+            fetch("/lookup", {
+                method: "POST",
+                body: JSON.stringify({ 'upc': enteredBarcode }),
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display the response data
+                console.log(JSON.stringify(data, null, 2));
+                resultContainer.appendChild(createProductDiv(data[0]));
+                console.log(data[1]['results'].length)
+
+                for (var i = 0; i < data[1]['results'].length; i++) {
+                    const productDiv = createProductDiv(data[1]['results'][i]);
+                    resultContainer.appendChild(productDiv);
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+            });
+
+        });
+
+        // Function to create a product div
+        function createProductDiv(productData) {
+            const productDiv = document.createElement("div");
+            productDiv.classList.add("product");
+            productDiv.textContent = JSON.stringify(productData, null, 2);
+            return productDiv;
+        }
+
+        // Get user media (camera) stream
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                // Assign the camera stream to the video element
+                video.srcObject = stream;
+            })
+            .catch(function(err) {
+                console.error("Camera access error:", err);
+            });
+
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: video, // Use the video element as the target
+            },
+            decoder: {
+                readers: ["ean_reader", "code_128_reader", "code_39_reader", "upc_reader"]
+            },
+        }, function(err) {
+            if (err) {
+                console.error("Quagga initialization failed:", err);
+                return;
+            }
+            Quagga.start();
+
+            // Handle the detected event
+            Quagga.onDetected(function(result) {
+                scanCount++;
+                if (scanCount <= maxScanCount) {
+                    const code = result.codeResult.code;
+                    if (ids[code] == undefined) {
+                        ids[code] = 1;
+                    } else {
+                        ids[code]++;
+                    }
+                    console.log(code, ids[code]);
+                    progressText.textContent = "Scanning - " + ((100/maxScanCount) * scanCount) + "%"; // Update progress text
+                }
+
+                if (scanCount > maxScanCount && sendData == true) {
+                    id = Object.keys(ids).reduce((a, b) => ids[a] > ids[b] ? a : b);
+                    console.log("Sending data to server " + id);
+                    sendData = false;
+                    progressText.textContent = "Scan complete"; // Update progress text
+                    
+
+                    fetch("/lookup", {
+                        method: "POST",
+                        body: JSON.stringify({ 'upc': id }),
+                        headers: {'Content-Type': 'application/json'}
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Display the response data
+                        console.log(JSON.stringify(data, null, 2));
+                        console.log(data[1])
+                        for (var i = 0; i < data.length; i++) {
+                            const productDiv = createProductDiv(data[i]);
+                            resultContainer.appendChild(productDiv);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error:", error);
+                    });
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>

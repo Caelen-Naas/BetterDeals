@@ -1,6 +1,19 @@
 import requests
 import re
 from parsel import Selector
+from urllib.parse import urlparse, parse_qs
+
+
+def extract_actual_vendor_link(google_redirect_url):
+    # Parse the URL
+    parsed_url = urlparse(google_redirect_url)
+
+    # Extract the 'url' parameter from the query string
+    query_parameters = parse_qs(parsed_url.query)
+    actual_vendor_link = query_parameters.get('url', [None])[0]
+
+    return actual_vendor_link
+
 
 def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: list = None) -> list:
     # Define parameters and headers
@@ -47,7 +60,7 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
 
     def get_suggested_search_data() -> list:
         google_shopping_data = []
-        result_count = 0
+        result_count = 1
 
         for result, thumbnail in zip(selector.css(".Qlx7of .i0X6df"), get_original_images()):
 
@@ -79,18 +92,18 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
 
             google_shopping_data.append({
                 "title": title,
-                "product_link": product_link,
+#                "product_link": product_link,
                 "product_rating": product_rating,
                 "product_reviews": product_reviews,
                 "price": price,
                 "store": store,
-                "thumbnail": thumbnail,
-                "store_link": store_link,
+#                "thumbnail": thumbnail,
+                "store_link": extract_actual_vendor_link(store_link),
                 "delivery": delivery,
                 "store_rating": store_rating,
                 "store_reviews": store_reviews,
-                "store_reviews_link": store_reviews_link,
-                "compare_prices_link": compare_prices_link,
+#                "store_reviews_link": store_reviews_link,
+#                "compare_prices_link": compare_prices_link,
             })
 
             result_count += 1
@@ -101,6 +114,3 @@ def scrape_google_shopping(query: str, max_results: int = 10, accepted_vendors: 
         return google_shopping_data
 
     return get_suggested_search_data()
-
-if __name__ == '__main__':
-    print(scrape_google_shopping('iphone 13', 5, ['amazon']))
